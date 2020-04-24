@@ -1,0 +1,12 @@
+COVIDSIM is a free modelling environment with a few models included. 
+It is released under the GNU public license. See the file COPYING for 
+details. 
+
+On Linux you can compile with the command 
+
+g++ -lm inf1.cc
+
+You can then run with the command
+
+./a.out <parameter_file> <output_file>
+
