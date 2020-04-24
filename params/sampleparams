@@ -1,0 +1,29 @@
+//sample parameter file
+number_of_runs 100
+death_rate 0.5
+geometric 1
+R0 3.5
+totdays 40
+inf_start 3
+inf_end 14
+time_to_death 17
+time_to_recovery 20
+initial_infections 10
+percentage_quarantined 0
+percentage_tested 100
+testdate 3
+herd 0
+population 500000
+//physical distancing related
+physical_distancing 0
+pddth 1
+pdeff1 80
+//lockdown related
+haslockdown 0
+lockdownlen 150
+infectible_proportion 0.003
+lockdth 10
+pdeff_lockdown 60
+popleak 5000
+popleak_start_day 0
+
