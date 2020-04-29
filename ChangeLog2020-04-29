@@ -1,0 +1,13 @@
+Added in the possibility that physical distancing and lockdown are triggered by a certain number of tested infections, rather than a certain number of deaths. New parameters lockdown_at_test and pd_at_test. Setting "lockdown_at_test" to "60" means that lockdown will start at the 60th positive case. 
+
+The decision on whether an infected individual will die or not is now set at the time of their creation. So is their death-time/recovery time, as these have been made random variables. 
+
+Added a distribution on death time (binomial distribution centred on time_to_death), if so desired. New parameter: dist_on_death, allowed values: 0,2,4,6. For example "6" means a binomial distribution with parameter "6", shifted to be centred on time_to_death. "0" means no distribution. 
+
+Added a distribution on recovery times (binomial distribution centred on time_to_recovery), if so desired. New parameter: dist_on_recovery, allowed values: 0,2,4,6 (as above).
+
+The decision on whether an individual will be quarantined is now set at the time of their creation. So is the time at which they will be quarantined which is now a random variable. Setting their quarantine time to a high value (larger than the time to death) is a way of ensuring that they aren't quarantined. 
+
+To help with synchronisation to data, allowed setting of a marker in the parameter file, so that synchronisation can be done at a particular test result number, or death number. For example setting the parameter "sync_at_test" to "60" and "sync_at_time" to "9" means that in the data, there were 60 positive cases at time point 9, and we'll count the first time point when there are 60 or more positive cases in the simulation as time-point 9. The file to which the delays can be stored is also a parameter, termed "sync_file" to be set. At some future point, a more sophisticated data matching may be introduced. 
+
+Several minor bugs fixed. 
