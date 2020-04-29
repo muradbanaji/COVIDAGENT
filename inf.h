@@ -18,22 +18,24 @@
 
  */
 
-#include <stdio.h>
-#include <string.h> // for strcmp
-
+#define MAXAGE 25
+#define MAXDISCPROB 30
 
 class inf{
 
  protected:
 
  public:
-  int age;  
-  int num;
-  int numtoinf;
+  int age;//days since infection. Updates at start of iteration.
+  int num;//index in list
+  int numtoinf;//number who will be infected (without mitigation)
   int ill;
-  int quar;
-  int inftimes[31];
-  int infnums[21];// number to infect at each time
+  int quar;//in quarantined state?
+  int quardt;//quarantine date
+  int inftimes[MAXDISCPROB+1];
+  int infnums[MAXAGE];// number to infect at each time
+  int dth_time;
+  int recov_time;
 
   //constructors, etc
 

@@ -8,22 +8,32 @@ inf_start 3
 inf_end 14
 time_to_death 17
 time_to_recovery 20
+dist_on_recovery 6
 initial_infections 10
 percentage_quarantined 0
 percentage_tested 100
 testdate 3
+dist_on_quardate 6
 herd 0
 population 500000
 //physical distancing related
 physical_distancing 0
+//pd_at_test 10
 pddth 1
 pdeff1 80
 //lockdown related
 haslockdown 0
 lockdownlen 150
 infectible_proportion 0.003
+//lockdown_at_test 1 
 lockdth 10
 pdeff_lockdown 60
 popleak 5000
 popleak_start_day 0
+//To sync with data. E.g. if the 40th positive case occurs on day 14
+sync_at_test 40 //scale down
+//sync_at_death 1 //scale down
+sync_at_time 14 //
+sync_file data1/SampleDelays
+
 
