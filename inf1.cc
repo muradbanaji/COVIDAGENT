@@ -331,7 +331,7 @@ int choosefromdist(int P[], int totP){//P has totp+1 entries
 // infected class
 // inf P is the distribution, maxP is the greatest num to infect
 // time steps in days
-// infected at age 0
+// infected at age 0, but updates to 1 at the start of each timestep
 // quarantined? Then can't infect
 // ill? Can die if ill
 // How many will this person infect? Follows the distribution
@@ -440,7 +440,7 @@ void die(inf *a, int *numcurinf){
 int main(int argc, char *argv[]){
   int timeint;
   time_t timepoint;
-  int i, j, m, r, cur, num_runs;//number of runs
+  int i, tmpi, j, m, r, cur, num_runs;//number of runs
   int maxP;
   double R0;
   double trueR0;
@@ -501,8 +501,8 @@ int main(int argc, char *argv[]){
   //Currently hard-wired in, to avoid overloading parameter files
   int topresent=0;//only simulate to a fixed day, namely "presentday" days after "trigger_dths" deaths
   int trigger_dths=1;//Number of deaths which trigger the clock. Not for synchronisation
-  int startclock=0;//The clock
   int presentday=1;//Number of days to run after trigger
+  int startclock=0;//The clock
 
   double avinfs, avdths;//average infections and deaths at trigger point
 
@@ -652,8 +652,7 @@ int main(int argc, char *argv[]){
 
       for(i=0;i<MAXINFS;i++){//for each infected person
 	if(inflist[i]==1){
-
-	  (infs[i]->age)++;//age updates at start...?
+	  (infs[i]->age)++;//age updates at start...
 	  if(infs[i]->age==infs[i]->quardt){//quarantine?
 	    infs[i]->quar=1;
 	    numquar++;
@@ -671,8 +670,11 @@ int main(int argc, char *argv[]){
 	    if(!pd|| (pd && randpercentage(100.0-pdeff))){//physical distancing
 	      if(herd){herdlevel=100.0*((double)numinf/(double)effpop);}
 	      if(!herd || (herd && randpercentage(100.0-herdlevel))){
-		for(j=0;j<infs[i]->infnums[infs[i]->age];j++)
-		  create(infs, P, maxP, inf_start, inf_end, &numinf, &numcurinf, &numill, percill, percdeath, time_to_death, dist_on_death, time_to_recovery, dist_on_recovery, testdate, quarp, dist_on_quardate);//create new infecteds
+		for(j=0;j<infs[i]->infnums[infs[i]->age];j++){
+		  tmpi=create(infs, P, maxP, inf_start, inf_end, &numinf, &numcurinf, &numill, percill, percdeath, time_to_death, dist_on_death, time_to_recovery, dist_on_recovery, testdate, quarp, dist_on_quardate);//create new infecteds
+		  if(tmpi>i)//this will update to zero as they come later in the sequence
+		    infs[tmpi]->age--;
+		}
 	      }
 	    }
 	  }
@@ -700,8 +702,8 @@ int main(int argc, char *argv[]){
 	}
 
 	if(startclock==presentday){
-	  printf("%d, %d: numinf=%d, numdeaths=%d, \n", r, m, numinf, numdeaths);
-	  //printf("%d\n", m);
+	  //printf("%d, %d: numinf=%d, numdeaths=%d, \n", r, m, numinf, numdeaths);
+	  printf("%d\n", m);
 	  avinfs+=numinf;avdths+=numdeaths;
 	  break;
 	}
