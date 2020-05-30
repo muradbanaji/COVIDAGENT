@@ -1,0 +1,13 @@
+Added code to track the number currently infectious - i.e., currently in the infective window (whether or not they are quarantined). 
+
+Added code to track the daily new infections, daily new positive tests, and daily new deaths. 
+
+Added code to properly deal with end of lockdown. Effective infectible population returns to total population at the end of lockdown. Physical distancing returns to pre-lockdown levels. 
+
+Added code to track seroconversion - new parameters "time_to_sero" (default val 10) and "dist_on_sero" (default val 6) control the average time to seroconversion, and the distribution on "time_to_sero" respectively. Each individual has a new property "sero_time" chosen from this distribution. And we track the total seroconversion with the variable "numsero". 
+
+Replaced output of "numill" (which should be ignored) with "numsero". 
+
+Changed the output format for the main output file. Currently: day number, cumulative infections, new infections, current infections, cumulative deaths, new deaths, recorded infections, new recorded infections, currently infectious, seropositive
+
+Some typos and explanation in the code changed.
