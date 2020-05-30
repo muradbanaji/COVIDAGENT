@@ -1,19 +1,19 @@
 /* Copyright (C) 2020, Murad Banaji
  *
- * This file is part of COVIDSIM
+ * This file is part of COVIDAGENT
  *
- * COVIDSIM is free software; you can redistribute it and/or 
+ * COVIDAGENT is free software; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License 
  * as published by the Free Software Foundation; either version 3, 
  * or (at your option) any later version.
  *
- * COVIDSIM is distributed in the hope that it will be useful, but
+ * COVIDAGENT is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with COVIDSIM: see the file COPYING.  If not, see 
+ * along with COVIDAGENT: see the file COPYING.  If not, see 
  * <https://www.gnu.org/licenses/>
 
  */
@@ -36,6 +36,7 @@ class inf{
   int infnums[MAXAGE];// number to infect at each time
   int dth_time;
   int recov_time;
+  int sero_time;//time to seroconversion (currently can't be longer than lifespan)
 
   //constructors, etc
 

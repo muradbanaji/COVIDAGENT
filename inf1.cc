@@ -1,26 +1,26 @@
 /* Copyright (C) 2020, Murad Banaji
  *
- * This file is part of COVIDSIM
+ * This file is part of COVIDAGENT
  *
- * COVIDSIM is free software; you can redistribute it and/or 
+ * COVIDAGENT is free software; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License 
  * as published by the Free Software Foundation; either version 3, 
  * or (at your option) any later version.
  *
- * COVIDSIM is distributed in the hope that it will be useful, but
+ * COVIDAGENT is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with COVIDSIM: see the file COPYING.  If not, see 
+ * along with COVIDAGENT: see the file COPYING.  If not, see 
  * <https://www.gnu.org/licenses/>
 
  */
 
  /* 
  * Some description of the modelling carried out
- * using COVIDSIM can be found at 
+ * using COVIDAGENT can be found at 
  * maths.mdx.ac.uk/research/modelling-the-covid-19-pandemic/
  */
 
@@ -383,21 +383,25 @@ inf **infar(long nl, long nh)
 }
 
 void free_infar(inf **m, long nl, long nh)
-/* free a float chararry allocated by charar() */
+/* free a float chararray allocated by charar() */
 {
   free((char *) (m+nl-1));
 }
 
+int nextpos=0;
 
-
-int create(inf *infs[], int P[], int maxP, int inf_start, int inf_end, int *numinf, int *numcurinf, int *numill, double percill, double percdeath, int time_to_death, int dist_on_death, int time_to_recovery, int dist_on_recovery, int testdate, double quarp, int dist_on_quardate){
+int create(inf *infs[], int P[], int maxP, int inf_start, int inf_end, int *numinf, int *numcurinf, int *newinfs, int *numill, double percill, double percdeath, int time_to_death, int dist_on_death, int time_to_recovery, int dist_on_recovery, int time_to_sero, int dist_on_sero, int testdate, double quarp, int dist_on_testdate){
   int i=firstfreepos(inflist, MAXINFS);
+  //int i=nextpos++;
   int j;
   if(i==-1)//no more space
     exit(0);
   infs[i] = new inf(i, P, maxP);
   (*numinf)++;
   (*numcurinf)++;
+  (*newinfs)++;
+
+  infs[i]->sero_time=time_to_sero+choosefrombin(dist_on_sero);
 
   for(j=0;j<MAXAGE;j++){//number to infect at time j
     infs[i]->infnums[j]=0;
@@ -419,7 +423,7 @@ int create(inf *infs[], int P[], int maxP, int inf_start, int inf_end, int *numi
     infs[i]->recov_time=time_to_recovery+choosefrombin(dist_on_recovery);
   }
   if(randpercentage(quarp))//to quarantine?
-    infs[i]->quardt=testdate+choosefrombin(dist_on_quardate);
+    infs[i]->quardt=testdate+choosefrombin(dist_on_testdate);
   else
     infs[i]->quardt=100;//This basically means no quarantining
   //set infection times
@@ -448,15 +452,18 @@ int main(int argc, char *argv[]){
   int totdays;//total simulation length
   inf **infs=infar(0, MAXINFS-1);
   int init_infs;
-  int numdeaths;
+  int numdeaths, newdeaths;
   float dthrate;//percentage. A key parameter
   int geometric;//geometric or poisson?
   int numinf;//number infected (cumulative)
   int numcurinf;//number currently infected
   int numcurinfold=0;
+  int numinfectious;// number in the infectious window
+  int newinfs; // number of new infections this time step. 
   int numquar;//number quarantined (cumulative)
-  int numtest;//number tested (cumulative)
+  int numtest,newtests;//number tested (cumulative) and new
   int numill;//number ill (cumulative)
+  int numsero;//cumulative seroconversion
   double percill;//percentage who fall (seriously) ill
   double percdeath;//percentage of ill who die
   int haslockdown;//lockdown?
@@ -471,39 +478,45 @@ int main(int argc, char *argv[]){
   float pdeff;//effectiveness of physical distancing. E.g. 40% - removes 2 in 5 contacts
   int pd;//physical distancing is occurring
   int inf_start, inf_end; //start and end of infective window
-  int time_to_death, time_to_recovery;//self explanatory
-  int dist_on_death, dist_on_recovery;//binomial distributions: values 0,2,4,6
+  int time_to_death, time_to_recovery, time_to_sero;//self explanatory
+  int dist_on_death, dist_on_recovery, dist_on_sero;//binomial distributions: values 0,2,4,6
   double quarp;//percentage who get quarantined
   double testp;//percentage *of those quarantined* who are tested
   int testdate;//Currently assume all tests occur on a particular day in the infection cycle. Only those tested are quarantined. India: 10? UK: 12?
-  int dist_on_quardate;//distribution on testdate
+  int dist_on_testdate;//distribution on testdate
   int lockdown_at_dth;//The lockdown begins after the death number lockdown_at_dth. UK ~200, India ~10
   int lockdown_at_test;//The lockdown begins after the death number lockdown_at_test.
   double totpop;// total population (only relevant if herd=1)
   double effpop;//effective population (only relevant if herd=1)
   double popleak;//leak into effective population post lockdown (an absolute value at the moment)
   int popleak_start_day=0;
-  float infectible_proportion;//default infected proportion at lockdown
+  float infectible_proportion;//default infectible proportion at lockdown
   int herd;//herd immunity?
   double herdlevel=0;
   char paramfilename[200], outfilename[200], fname[200], delayfname[200];
-  FILE *fd, *fd1, *fd2; //files to store output
+  FILE *fd, *fd1, *fd2, *fd3; //files to store output
   int syncflag=0;
 
   //For the purposes of synchronising with data
   int sync_at_test;//at test number
   int sync_at_death;//at death number
+  int sync_at_inf;//at infection number
   int sync_at_time;
 
   //These parameters are relevant if we want to 
   //run simulations upto or a certain number of days
   //beyond a particular death trigger
   //Currently hard-wired in, to avoid overloading parameter files
-  int topresent=0;//only simulate to a fixed day, namely "presentday" days after "trigger_dths" deaths
-  int trigger_dths=1;//Number of deaths which trigger the clock. Not for synchronisation
+  int topresent=0;//only simulate to a fixed day, namely "presentday" days after "trigger_dths" deaths or "trigger_infs" infections
+  int trigger_dths=0;//Number of deaths which trigger the clock. Not for synchronisation
+  int trigger_infs=1000000;//Number of infections which trigger the clock. Not for synchronisation
+  int startinfs, endinfs;
   int presentday=1;//Number of days to run after trigger
   int startclock=0;//The clock
 
+  //for doubling times
+  int totdoubling=0;
+  double avdoubling=0;
   double avinfs, avdths;//average infections and deaths at trigger point
 
 
@@ -532,13 +545,15 @@ int main(int argc, char *argv[]){
   dist_on_death=getoptioni(paramfilename, "dist_on_death", 0, fd1);//distribution on time_to_death
   time_to_recovery=getoptioni(paramfilename, "time_to_recovery", 20, fd1);//recovery time
   dist_on_recovery=getoptioni(paramfilename, "dist_on_recovery", 0, fd1);//distribution on time_to_recovery
+  time_to_sero=getoptioni(paramfilename, "time_to_sero", 10, fd1);//seroconversion time
+  dist_on_sero=getoptioni(paramfilename, "dist_on_sero", 6, fd1);//distribution on time_to_sero
   init_infs=getoptioni(paramfilename, "initial_infections", 10, fd1);//initial number infected
   herd=getoptioni(paramfilename, "herd", 1, fd1);//herd immunity?
   //options: quarantine and testing
   quarp=getoptionf(paramfilename, "percentage_quarantined", 4, fd1);//percentage of infecteds who are quarantined
   testp=getoptionf(paramfilename, "percentage_tested", 100, fd1);//the percentage *of those quarantined* who are tested
   testdate=getoptioni(paramfilename, "testdate", 12, fd1);//date of testing and quarantining
-  dist_on_quardate=getoptioni(paramfilename, "dist_on_testdate", 0, fd1);//distribution on quarantine date
+  dist_on_testdate=getoptioni(paramfilename, "dist_on_testdate", 0, fd1);//distribution on quarantine date
   //options: lockdown
   haslockdown=getoptioni(paramfilename, "haslockdown", 0, fd1);//lockdown?
   lockdown_at_dth=getoptioni(paramfilename, "lockdth", -1, fd1);//lockdown at nth death
@@ -554,6 +569,7 @@ int main(int argc, char *argv[]){
   pd_at_test=getoptioni(paramfilename, "pd_at_test", -1,fd1);//physical distancing at nth infection
   pdeff1=getoptionf(paramfilename, "pdeff1", 30, fd1);//effectiveness of physical distancing
   sync_at_test=getoptionf(paramfilename, "sync_at_test", -1, fd1);//for synchronisation
+  sync_at_inf=getoptionf(paramfilename, "sync_at_inf", -1, fd1);//for synchronisation
   sync_at_death=getoptionf(paramfilename, "sync_at_death", -1, fd1);//for synchronisation
   sync_at_time=getoptionf(paramfilename, "sync_at_time", -1, fd1);//for synchronisation
 
@@ -568,6 +584,7 @@ int main(int argc, char *argv[]){
     sprintf(fname, "data2/dth%.1f_%s_lamb%.2f_nolock.csv", dthrate, geometric==1?"geom":"pois", R0);
   fprintf(stderr, "%s\n", fname);
   fd=fopen(fname, "w");//csv output
+  fd3=fopen("data1/graph", "w");
 
   //How is the number to infect distributed? How to truncate?
   if(geometric){maxP=1.5*R0*(R0+1)<MAXDISCPROB?(int)(1.5*R0*(R0+1)):MAXDISCPROB;P=discGeom(R0, maxP);}//geometric (1.5 SD)
@@ -602,7 +619,10 @@ int main(int argc, char *argv[]){
     numquar=0;
     numtest=0;
     numill=0;
+    numsero=0;
     numdeaths=0;
+    newdeaths=0;
+    newtests=0;
     lockdownday=0;
     effpop=totpop;
     pd=0;
@@ -610,7 +630,8 @@ int main(int argc, char *argv[]){
     for(i=0;i<MAXINFS;i++){inflist[i]=0;}//initialise
 
     for(i=0;i<init_infs;i++){
-      cur=create(infs, P, maxP, inf_start, inf_end, &numinf, &numcurinf, &numill, percill, percdeath, time_to_death, dist_on_death, time_to_recovery, dist_on_recovery, testdate, quarp, dist_on_quardate);//create
+      cur=create(infs, P, maxP, inf_start, inf_end, &numinf, &numcurinf, &newinfs, &numill, percill, percdeath, time_to_death, dist_on_death, time_to_recovery, dist_on_recovery, time_to_sero, dist_on_sero, testdate, quarp, dist_on_testdate);//create
+      //fprintf(fd3, "0 %d\n", cur);
       fprintf(stderr, "infs[%d] (illstate=%d) will infect %d at times:\n",cur, infs[cur]->ill, infs[cur]->numtoinf);
       for(j=0;j<(infs[cur])->numtoinf;j++){
 	fprintf(stderr, "   %d\n", infs[cur]->inftimes[j]);
@@ -618,6 +639,7 @@ int main(int argc, char *argv[]){
     }
     
     for(m=0;m<totdays;m++){//each day
+      numinfectious=0;newinfs=0;newdeaths=0;newtests=0;
       numcurinfold=numcurinf;
       if(herd)
 	fprintf(stderr, "herdlevel=%.4f\n", herdlevel);
@@ -644,6 +666,13 @@ int main(int argc, char *argv[]){
 	  pdeff=pdeff_lockdown;//physical distancing becomes more effective  
 	  lockdownday++;
 	}
+	else{//lockdown finishes. Assume physical distancing continues
+	  effpop=totpop;
+	  fprintf(stderr, "Lockdown finished. Effective population now %.4f.\n", effpop);
+	  if(haspd){
+	    pdeff=pdeff1;
+	  }
+	}
       }
       if(pd){
 	fprintf(stderr, "physical distancing = %.2f.\n", pdeff);
@@ -653,27 +682,42 @@ int main(int argc, char *argv[]){
       for(i=0;i<MAXINFS;i++){//for each infected person
 	if(inflist[i]==1){
 	  (infs[i]->age)++;//age updates at start...
+	  if(infs[i]->age>= inf_start && infs[i]->age <= inf_end){
+	    numinfectious++;
+	  }
+
+	  if(infs[i]->age==infs[i]->sero_time){//seroconversion
+	    numsero++;
+	  }
+
 	  if(infs[i]->age==infs[i]->quardt){//quarantine?
 	    infs[i]->quar=1;
 	    numquar++;
-	    if(randpercentage(testp))
-	      numtest++;
+	    if(randpercentage(testp)){
+	      numtest++;newtests++;
+	    }
 	  }
+
 	  if(infs[i]->ill==-1 && infs[i]->age>infs[i]->dth_time){//time_to_death
-	    numdeaths++;
+	    numdeaths++;newdeaths++;
 	    die(infs[i], &numcurinf);// die 
 	  }
 	  else if(infs[i]->ill!=-1 && infs[i]->age>infs[i]->recov_time){//time_to_recovery
 	    die(infs[i], &numcurinf);// recover
 	  }
-	  else if(infs[i]->quar==0){//if not quarantined, 
-	    if(!pd|| (pd && randpercentage(100.0-pdeff))){//physical distancing
-	      if(herd){herdlevel=100.0*((double)numinf/(double)effpop);}
-	      if(!herd || (herd && randpercentage(100.0-herdlevel))){
-		for(j=0;j<infs[i]->infnums[infs[i]->age];j++){
-		  tmpi=create(infs, P, maxP, inf_start, inf_end, &numinf, &numcurinf, &numill, percill, percdeath, time_to_death, dist_on_death, time_to_recovery, dist_on_recovery, testdate, quarp, dist_on_quardate);//create new infecteds
-		  if(tmpi>i)//this will update to zero as they come later in the sequence
-		    infs[tmpi]->age--;
+	  else{
+	    // if(infs[i]->age>=1)
+	    //   fprintf(fd3, "%d %d %d\n%d %d %d\n\n", m, i, i, m+1, i, i);
+	    if(infs[i]->quar==0){//if not quarantined, 
+	      if(!pd|| (pd && randpercentage(100.0-pdeff))){//physical distancing
+		if(herd){herdlevel=100.0*((double)numinf/(double)effpop);}
+		if(!herd || (herd && randpercentage(100.0-herdlevel))){
+		  for(j=0;j<infs[i]->infnums[infs[i]->age];j++){
+		    tmpi=create(infs, P, maxP, inf_start, inf_end, &numinf, &numcurinf, &newinfs, &numill, percill, percdeath, time_to_death, dist_on_death, time_to_recovery, dist_on_recovery, time_to_sero, dist_on_sero, testdate, quarp, dist_on_testdate);//create new infecteds
+//		    fprintf(fd3, "%d %d %d\n%d %d %d\n\n", m, i, i, m+1, tmpi, tmpi);
+		    if(tmpi>i)//this will update to zero as they come later in the sequence
+		      infs[tmpi]->age--;
+		  }
 		}
 	      }
 	    }
@@ -681,9 +725,9 @@ int main(int argc, char *argv[]){
 	}
       }//cycled through all infected individuals
 
-      fprintf(stderr, "%d: numinf=%d, numcurinf=%d(%.2fpc), numdeaths=%d, numtest=%d, numill=%d\n", m, numinf, numcurinf, numcurinfold>=1?100.0*((double)numcurinf-(double)numcurinfold)/((double)numcurinfold):-1,numdeaths, numtest, numill);
-      fprintf(fd,"%d,%d,%.4f,%d,%d,%.4f, %d,%.4f,%d\n", m, numinf, numinf>=1?log10((float)numinf):-1, numcurinf, numdeaths, numdeaths>=1?log10((float)numdeaths):-1,numtest,numtest>=1?log10((float)numtest):-1, numill);
-      fprintf(fd1,"%d\t%d\t%.4f\t%d\t%d\t%.4f\t %d\t%.4f\t%d\n", m, numinf, numinf>=1?log10((float)numinf):-1, numcurinf, numdeaths, numdeaths>=1?log10((float)numdeaths):-1,numtest,numtest>=1?log10((float)numtest):-1, numill);
+      fprintf(stderr, "%d: numinf=%d, newinfs=%d, numcurinf=%d(%.2fpc), numdeaths=%d, newdeaths=%d, numtest=%d, numinfectious=%d, numsero=%d\n", m, numinf, newinfs, numcurinf, numcurinfold>=1?100.0*((double)numcurinf-(double)numcurinfold)/((double)numcurinfold):-1,numdeaths, newdeaths, numtest, numinfectious, numsero);
+      fprintf(fd,"%d,%d,%.4f,%d,%d,%.4f, %d,%.4f,%d\n", m, numinf, numinf>=1?log10((float)numinf):-1, numcurinf, numdeaths, numdeaths>=1?log10((float)numdeaths):-1,numtest,numtest>=1?log10((float)numtest):-1, numsero);
+      fprintf(fd1,"%d\t%d\t%d\t%d\t %d\t%d\t%d\t%d\t%d\t%d\n", m, numinf, newinfs, numcurinf, numdeaths, newdeaths, numtest,newtests,numinfectious,numsero);
       //Setting the delays
       if(sync_at_test>0 && numtest>=sync_at_test && !syncflag){
 	fprintf(fd2, "delay%02d=%d\n",r,m-sync_at_time);
@@ -693,19 +737,44 @@ int main(int argc, char *argv[]){
 	fprintf(fd2, "delay%02d=%d\n",r,m-sync_at_time);
 	syncflag=1;
       }
-      fflush(fd);fflush(fd1);fflush(fd2);
+      else if(sync_at_inf>0 && numinf>=sync_at_inf && !syncflag){
+	fprintf(fd2, "delay%02d=%d\n",r,m-sync_at_time);
+	syncflag=1;
+      }
+//      fprintf(fd3, "\n");
+      fflush(fd);fflush(fd1);fflush(fd2);fflush(fd3);
 
       //Are we running the model only to a particular moment?
       if(topresent){
-	if(numdeaths>=trigger_dths){
-	  startclock++;
-	}
+	if(trigger_infs){//triggered by infection numbers
+	  if(numinf>=trigger_infs){
+	    //printf("%d, %d: numinf=%d, numdeaths=%d, \n", r, m, numinf, numdeaths);
+	    if(startclock==0)
+	      startinfs=numinf;
+	    startclock++;
+	  }
+	  if(startclock==presentday){
+	    //printf("%d, %d: numinf=%d, numdeaths=%d, \n", r, m, numinf, numdeaths);
+	    endinfs=numinf;
+	    printf("model run %d: %d %d %d\n", r, startinfs, endinfs, presentday-1);
+	    printf("doubling=%.4f\n", log(2.0)*(presentday-1)/(log(endinfs)-log(startinfs)));
+	    totdoubling++; avdoubling+=log(2.0)*(presentday-1)/(log(endinfs)-log(startinfs));
 
-	if(startclock==presentday){
-	  //printf("%d, %d: numinf=%d, numdeaths=%d, \n", r, m, numinf, numdeaths);
-	  printf("%d\n", m);
-	  avinfs+=numinf;avdths+=numdeaths;
-	  break;
+	    break;
+	  }
+	}
+	else{
+	  
+	  if(numdeaths>=trigger_dths){
+	    startclock++;
+	  }
+	  
+	  if(startclock==presentday){
+	    //printf("%d, %d: numinf=%d, numdeaths=%d, \n", r, m, numinf, numdeaths);
+	    printf("%d\n", m);
+	    avinfs+=numinf;avdths+=numdeaths;
+	    break;
+	  }
 	}
       }
     }
@@ -722,11 +791,11 @@ int main(int argc, char *argv[]){
     }
   }
   if(topresent)
-    printf("avinfs=%.4f, avdeaths=%.4f\n", avinfs/((double)num_runs), avdths/((double)num_runs));
+    printf("avinfs=%.4f, avdeaths=%.4f, av. doubling time=%.4f\n", avinfs/((double)num_runs), avdths/((double)num_runs),avdoubling/((double)totdoubling));
 
   free_infar(infs, 0, MAXINFS-1);
   free((char *) P);
-  fclose(fd);fclose(fd1);fclose(fd2);
+  fclose(fd);fclose(fd1);fclose(fd2);fclose(fd3);
 
   return 0;
 }

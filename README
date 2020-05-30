@@ -1,4 +1,7 @@
-COVIDSIM is a free modelling environment with a few models included. 
+COVIDAGENT is a free agent based modelling environment for 
+modelling the COVID-19 pandemic.
+It was formerly named COVIDSIM, but this was changed as several other
+modelling environments were found to be using this name. 
 It is released under the GNU public license. See the file COPYING for 
 details. 
 
