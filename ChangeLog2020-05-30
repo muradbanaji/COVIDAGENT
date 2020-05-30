@@ -1,3 +1,5 @@
+Renamed the whole project to COVIDAGENT to avoid clashes with other modelling sites.
+
 Added code to track the number currently infectious - i.e., currently in the infective window (whether or not they are quarantined). 
 
 Added code to track the daily new infections, daily new positive tests, and daily new deaths. 
