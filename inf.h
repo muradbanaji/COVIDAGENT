@@ -19,7 +19,7 @@
  */
 
 #define MAXAGE 25
-#define MAXDISCPROB 30
+#define MAXDISCPROB 120
 
 class inf{
 
@@ -37,10 +37,13 @@ class inf{
   int dth_time;
   int recov_time;
   int sero_time;//time to seroconversion (currently can't be longer than lifespan)
+  int lastop_time;// when can it be destroyed?
 
   //constructors, etc
 
-  inf(int orgnum, int P[], int maxP);
-  void setinftimes(int rmin, int rmax);
+  inf(int orgnum, int P[], int maxP);//arbitrary distribution
+  inf(int orgnum, double alpha, double beta);//gamma distribution
+  void setinftimes(int rmin, int rmax);//uniform distribution
+  void setinftimes(double alpha, double beta);//gamma distribution
 
 };

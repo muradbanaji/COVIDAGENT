@@ -1,6 +1,6 @@
 /* Copyright (C) 2020, Murad Banaji
  *
- * This file is part of COVIDAGENT
+ * This file is part of COVIDAGENT v1.0
  *
  * COVIDAGENT is free software; you can redistribute it and/or 
  * modify it under the terms of the GNU General Public License 
@@ -53,6 +53,19 @@ int getline(FILE *fp, char s[], int lim)
   }
   s[i] = '\0';
   return i;
+}
+
+//From https://stackoverflow.com/questions/29787310/does-pow-work-for-int-data-type-in-c
+int int_pow(int base, int exp){
+  int result = 1;
+  while (exp)
+    {
+      if (exp % 2)
+	result *= base;
+      exp /= 2;
+      base *= base;
+    }
+  return result;
 }
 
 int getnthblock(char *s, char *v, int len, int n){
@@ -340,7 +353,7 @@ int choosefromdist(int P[], int totP){//P has totp+1 entries
 // The infection times are chosen from a uniform distribution on some
 // range of values
 
-
+//gamswtch is a dummy variable in this version
 inf::inf(int orgnum, int P[], int maxP){
   age = 0;
   ill = 0;
@@ -370,7 +383,7 @@ int firstfreepos(int *inflist, int maxinfs){
 }
 
 inf **infar(long nl, long nh)
-/* This function allocates a set of character pointers */
+/* allocates a set of pointers to infs */
 {
   long nrow = nh-nl+1;
   inf **m;
@@ -383,7 +396,7 @@ inf **infar(long nl, long nh)
 }
 
 void free_infar(inf **m, long nl, long nh)
-/* free a float chararray allocated by charar() */
+/* free an inf array allocated by infar() */
 {
   free((char *) (m+nl-1));
 }
@@ -493,23 +506,25 @@ int main(int argc, char *argv[]){
   float infectible_proportion;//default infectible proportion at lockdown
   int herd;//herd immunity?
   double herdlevel=0;
-  char paramfilename[200], outfilename[200], fname[200], delayfname[200];
-  FILE *fd, *fd1, *fd2, *fd3; //files to store output
-  int syncflag=0;
+  char paramfilename[200], outfilename[200], endfname[204], fname[200], delayfname[200];
+  FILE *fd, *fd1, *fd2, *fd3, *fd4; //files to store output
 
   //For the purposes of synchronising with data
+  int syncflag=0;
   int sync_at_test;//at test number
   int sync_at_death;//at death number
   int sync_at_inf;//at infection number
   int sync_at_time;
+  int syncclock=0;//start counting after synchronisation
+  int syncout;//output syncout days after first real data point (first dp is at time 0, not 1)
 
   //These parameters are relevant if we want to 
   //run simulations upto or a certain number of days
   //beyond a particular death trigger
   //Currently hard-wired in, to avoid overloading parameter files
-  int topresent=0;//only simulate to a fixed day, namely "presentday" days after "trigger_dths" deaths or "trigger_infs" infections
-  int trigger_dths=0;//Number of deaths which trigger the clock. Not for synchronisation
-  int trigger_infs=1000000;//Number of infections which trigger the clock. Not for synchronisation
+  int topresent=0;//only simulate to a fixed day namely "presentday" days after "trigger_dths" deaths or "trigger_infs" infections
+  int trigger_dths=1;//Number of deaths which trigger the clock. Not for synchronisation
+  int trigger_infs=0;//Number of infections which trigger the clock. Not for synchronisation
   int startinfs, endinfs;
   int presentday=1;//Number of days to run after trigger
   int startclock=0;//The clock
@@ -518,6 +533,12 @@ int main(int argc, char *argv[]){
   int totdoubling=0;
   double avdoubling=0;
   double avinfs, avdths;//average infections and deaths at trigger point
+
+  //
+  int multiplier=1;
+  int dynmultiply=1;//dynamic to speed up computation
+  int cur_exp=1;
+  int scale_at_infs=50000;
 
 
   if(argc < 2){
@@ -531,6 +552,8 @@ int main(int argc, char *argv[]){
     strcpy(outfilename, "data1/tmp");//default output file
 
   fd1=fopen(outfilename, "w"); //tab separated output
+  strcpy(endfname, outfilename);strcat(endfname, "_end");
+  fd4=fopen(endfname, "w"); //tab separated output - values after synchronisation
 
   //options: general
   num_runs=getoptioni(paramfilename, "number_of_runs", 10, fd1);//model runs
@@ -545,7 +568,7 @@ int main(int argc, char *argv[]){
   dist_on_death=getoptioni(paramfilename, "dist_on_death", 0, fd1);//distribution on time_to_death
   time_to_recovery=getoptioni(paramfilename, "time_to_recovery", 20, fd1);//recovery time
   dist_on_recovery=getoptioni(paramfilename, "dist_on_recovery", 0, fd1);//distribution on time_to_recovery
-  time_to_sero=getoptioni(paramfilename, "time_to_sero", 10, fd1);//seroconversion time
+  time_to_sero=getoptioni(paramfilename, "time_to_sero", 14, fd1);//seroconversion time
   dist_on_sero=getoptioni(paramfilename, "dist_on_sero", 6, fd1);//distribution on time_to_sero
   init_infs=getoptioni(paramfilename, "initial_infections", 10, fd1);//initial number infected
   herd=getoptioni(paramfilename, "herd", 1, fd1);//herd immunity?
@@ -572,6 +595,16 @@ int main(int argc, char *argv[]){
   sync_at_inf=getoptionf(paramfilename, "sync_at_inf", -1, fd1);//for synchronisation
   sync_at_death=getoptionf(paramfilename, "sync_at_death", -1, fd1);//for synchronisation
   sync_at_time=getoptionf(paramfilename, "sync_at_time", -1, fd1);//for synchronisation
+  syncout=getoptioni(paramfilename, "syncout", 94, fd1);//for synchronisation
+  // dynamic speeding up. Set to -1 for no speeding up
+  scale_at_infs=getoptioni(paramfilename, "scale_at_infs", 50000,fd1);//default is to begin scaling at the 50000th infection
+
+  if(scale_at_infs>0){
+    multiplier=1;
+    dynmultiply=1;
+  }
+  else
+    dynmultiply=0;
 
   if (getoption(paramfilename, "sync_file", delayfname, 200)!=0){
     strncpy (delayfname, "data1/delaytriggers", sizeof(delayfname));
@@ -587,9 +620,25 @@ int main(int argc, char *argv[]){
   fd3=fopen("data1/graph", "w");
 
   //How is the number to infect distributed? How to truncate?
-  if(geometric){maxP=1.5*R0*(R0+1)<MAXDISCPROB?(int)(1.5*R0*(R0+1)):MAXDISCPROB;P=discGeom(R0, maxP);}//geometric (1.5 SD)
+  if(geometric){maxP=2*R0*(R0+1)<MAXDISCPROB?(int)(2*R0*(R0+1)):MAXDISCPROB;P=discGeom(R0, maxP);}//geometric (2 SD)
   else{maxP=3*R0<MAXDISCPROB?(int)(3*R0):MAXDISCPROB;P=discPois(R0, maxP);}//Poisson (three SD)
 
+  if(multiplier>1){// This is only relevant for a hard-set multiplier
+    dthrate*=multiplier;
+    if(totpop>=multiplier)
+      totpop/=multiplier;
+    if(popleak>=multiplier)
+      popleak/=multiplier;
+    if(pd_at_test>=multiplier)
+      pd_at_test/=multiplier;
+    if(lockdown_at_test>=multiplier)
+      lockdown_at_test/=multiplier;
+    if(sync_at_test>=multiplier)
+      sync_at_test/=multiplier;
+    if(sync_at_inf>=multiplier)
+      sync_at_inf/=multiplier;
+
+  }
 
   percill=20.0;//percentage of people who fall quite ill (not currently used - for hospitalisations data?)
   percdeath=dthrate*100.0/percill;
@@ -607,6 +656,8 @@ int main(int argc, char *argv[]){
   }
   trueR0+=maxP*((double)(P[maxP]))/1000.0;
   fprintf(stderr, "R0=%.4f, trueR0=%.4f\n", R0, trueR0);
+
+
   //exit(0);
 
   //At each time step go through each infected, augment its age, check its numtoinf, and then go through its inftimes, and spawn new if needed, remove it if needed.
@@ -627,6 +678,11 @@ int main(int argc, char *argv[]){
     effpop=totpop;
     pd=0;
     syncflag=0;
+    syncclock=0;
+    cur_exp=1;
+    if(dynmultiply)
+      multiplier=1;
+
     for(i=0;i<MAXINFS;i++){inflist[i]=0;}//initialise
 
     for(i=0;i<init_infs;i++){
@@ -639,6 +695,21 @@ int main(int argc, char *argv[]){
     }
     
     for(m=0;m<totdays;m++){//each day
+
+      if(dynmultiply && numcurinf>=scale_at_infs*int_pow(2,cur_exp-1) && multiplier==int_pow(2,cur_exp-1)){//multiplier
+	cur_exp++;multiplier*=2;
+	fprintf(stderr, "multiplier=%d\n", multiplier);
+	for(i=0;i<MAXINFS;i++){// kill off every other active infection
+	  if(inflist[i]==1){
+	    if(randnum(2)<1){
+	      die(infs[i], &numcurinf);
+	      numcurinf++;//to undo the removal in stats
+	    }
+	  }
+	}
+
+      }
+
       numinfectious=0;newinfs=0;newdeaths=0;newtests=0;
       numcurinfold=numcurinf;
       if(herd)
@@ -668,7 +739,8 @@ int main(int argc, char *argv[]){
 	}
 	else{//lockdown finishes. Assume physical distancing continues
 	  effpop=totpop;
-	  fprintf(stderr, "Lockdown finished. Effective population now %.4f.\n", effpop);
+	  if(lockdownday>=lockdownlen)
+	    fprintf(stderr, "Lockdown finished. Effective population now %.4f.\n", effpop);
 	  if(haspd){
 	    pdeff=pdeff1;
 	  }
@@ -683,27 +755,29 @@ int main(int argc, char *argv[]){
 	if(inflist[i]==1){
 	  (infs[i]->age)++;//age updates at start...
 	  if(infs[i]->age>= inf_start && infs[i]->age <= inf_end){
-	    numinfectious++;
+	    numinfectious+=multiplier;
 	  }
 
 	  if(infs[i]->age==infs[i]->sero_time){//seroconversion
-	    numsero++;
+	    numsero+=multiplier;
 	  }
 
 	  if(infs[i]->age==infs[i]->quardt){//quarantine?
 	    infs[i]->quar=1;
-	    numquar++;
+	    numquar+=multiplier;
 	    if(randpercentage(testp)){
-	      numtest++;newtests++;
+	      numtest+=multiplier;newtests+=multiplier;
 	    }
 	  }
 
 	  if(infs[i]->ill==-1 && infs[i]->age>infs[i]->dth_time){//time_to_death
-	    numdeaths++;newdeaths++;
+	    numdeaths+=multiplier;newdeaths+=multiplier;
 	    die(infs[i], &numcurinf);// die 
+	    numcurinf-=(multiplier-1);
 	  }
 	  else if(infs[i]->ill!=-1 && infs[i]->age>infs[i]->recov_time){//time_to_recovery
 	    die(infs[i], &numcurinf);// recover
+	    numcurinf-=(multiplier-1);
 	  }
 	  else{
 	    // if(infs[i]->age>=1)
@@ -714,6 +788,11 @@ int main(int argc, char *argv[]){
 		if(!herd || (herd && randpercentage(100.0-herdlevel))){
 		  for(j=0;j<infs[i]->infnums[infs[i]->age];j++){
 		    tmpi=create(infs, P, maxP, inf_start, inf_end, &numinf, &numcurinf, &newinfs, &numill, percill, percdeath, time_to_death, dist_on_death, time_to_recovery, dist_on_recovery, time_to_sero, dist_on_sero, testdate, quarp, dist_on_testdate);//create new infecteds
+		    numinf+=(multiplier-1);
+		    numcurinf+=(multiplier-1);
+		    newinfs+=(multiplier-1);
+		    if(infs[tmpi]->ill==1)
+		      numill+=(multiplier-1);
 //		    fprintf(fd3, "%d %d %d\n%d %d %d\n\n", m, i, i, m+1, tmpi, tmpi);
 		    if(tmpi>i)//this will update to zero as they come later in the sequence
 		      infs[tmpi]->age--;
@@ -728,6 +807,8 @@ int main(int argc, char *argv[]){
       fprintf(stderr, "%d: numinf=%d, newinfs=%d, numcurinf=%d(%.2fpc), numdeaths=%d, newdeaths=%d, numtest=%d, numinfectious=%d, numsero=%d\n", m, numinf, newinfs, numcurinf, numcurinfold>=1?100.0*((double)numcurinf-(double)numcurinfold)/((double)numcurinfold):-1,numdeaths, newdeaths, numtest, numinfectious, numsero);
       fprintf(fd,"%d,%d,%.4f,%d,%d,%.4f, %d,%.4f,%d\n", m, numinf, numinf>=1?log10((float)numinf):-1, numcurinf, numdeaths, numdeaths>=1?log10((float)numdeaths):-1,numtest,numtest>=1?log10((float)numtest):-1, numsero);
       fprintf(fd1,"%d\t%d\t%d\t%d\t %d\t%d\t%d\t%d\t%d\t%d\n", m, numinf, newinfs, numcurinf, numdeaths, newdeaths, numtest,newtests,numinfectious,numsero);
+      if(syncclock==syncout-sync_at_time)
+	fprintf(fd4,"%d\t%d\t%d\t%d\t %d\t%d\t%d\t%d\t%d\t%d\n", m, numinf, newinfs, numcurinf, numdeaths, newdeaths, numtest,newtests,numinfectious,numsero);
       //Setting the delays
       if(sync_at_test>0 && numtest>=sync_at_test && !syncflag){
 	fprintf(fd2, "delay%02d=%d\n",r,m-sync_at_time);
@@ -742,7 +823,7 @@ int main(int argc, char *argv[]){
 	syncflag=1;
       }
 //      fprintf(fd3, "\n");
-      fflush(fd);fflush(fd1);fflush(fd2);fflush(fd3);
+      fflush(fd);fflush(fd1);fflush(fd2);fflush(fd3);fflush(fd4);
 
       //Are we running the model only to a particular moment?
       if(topresent){
@@ -753,30 +834,40 @@ int main(int argc, char *argv[]){
 	      startinfs=numinf;
 	    startclock++;
 	  }
-	  if(startclock==presentday){
+	  if(startclock==presentday+1){
 	    //printf("%d, %d: numinf=%d, numdeaths=%d, \n", r, m, numinf, numdeaths);
 	    endinfs=numinf;
-	    printf("model run %d: %d %d %d\n", r, startinfs, endinfs, presentday-1);
-	    printf("doubling=%.4f\n", log(2.0)*(presentday-1)/(log(endinfs)-log(startinfs)));
-	    totdoubling++; avdoubling+=log(2.0)*(presentday-1)/(log(endinfs)-log(startinfs));
-
+	    printf("model run %d: %d %d %d\n", r, startinfs, endinfs, presentday);
+	    if(presentday>0 && endinfs-startinfs!=0){
+	      printf("doubling=%.4f\n", log(2.0)*(presentday)/(log(endinfs)-log(startinfs)));
+	      totdoubling++; avdoubling+=log(2.0)*(presentday)/(log(endinfs)-log(startinfs));
+	    }
+	    avinfs+=numinf;avdths+=numdeaths;
 	    break;
 	  }
 	}
 	else{
 	  
 	  if(numdeaths>=trigger_dths){
+	    if(startclock==0)
+	      startinfs=numinf;
 	    startclock++;
 	  }
 	  
-	  if(startclock==presentday){
-	    //printf("%d, %d: numinf=%d, numdeaths=%d, \n", r, m, numinf, numdeaths);
-	    printf("%d\n", m);
+	  if(startclock==presentday+1){
+	    endinfs=numinf;
+	    printf("model run %d: %d %d %d\n", r, startinfs, endinfs, presentday);
+	    if(presentday>0 && endinfs-startinfs!=0){
+	      printf("doubling=%.4f\n", log(2.0)*(presentday)/(log(endinfs)-log(startinfs)));
+	      totdoubling++; avdoubling+=log(2.0)*(presentday)/(log(endinfs)-log(startinfs));
+	    }
 	    avinfs+=numinf;avdths+=numdeaths;
 	    break;
 	  }
 	}
       }
+      if(syncflag)
+	syncclock++;// counts days since synchronisation event
     }
     if(!syncflag){//synchronisation point never reached (died out?)
       fprintf(fd2, "delay%02d=0\n",r);
@@ -790,12 +881,16 @@ int main(int argc, char *argv[]){
       }
     }
   }
-  if(topresent)
-    printf("avinfs=%.4f, avdeaths=%.4f, av. doubling time=%.4f\n", avinfs/((double)num_runs), avdths/((double)num_runs),avdoubling/((double)totdoubling));
+  if(topresent){
+    if(totdoubling>0)
+      printf("avinfs=%.4f, avdeaths=%.4f, av. doubling time=%.4f\n", avinfs/((double)num_runs), avdths/((double)num_runs),avdoubling/((double)totdoubling));
+    else
+      printf("avinfs=%.4f, avdeaths=%.4f\n", avinfs/((double)num_runs), avdths/((double)num_runs));
+  }
 
   free_infar(infs, 0, MAXINFS-1);
   free((char *) P);
-  fclose(fd);fclose(fd1);fclose(fd2);fclose(fd3);
+  fclose(fd);fclose(fd1);fclose(fd2);fclose(fd3);fclose(fd4);
 
   return 0;
 }

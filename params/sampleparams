@@ -1,40 +1,33 @@
-//sample parameter file
-number_of_runs 100
+//basic parameter file (no mitigation, no distributions)
+number_of_runs 1
 death_rate 0.5
 geometric 1
-R0 3.5
-totdays 40
+R0 2.5
+totdays 30
 inf_start 3
 inf_end 14
 time_to_death 17
 dist_on_death 6
 time_to_recovery 20
 dist_on_recovery 6
-initial_infections 10
-percentage_quarantined 15
-percentage_tested 30
-testdate 8
-dist_on_testdate 6
-herd 1
-population 1000000
+initial_infections 1
+percentage_quarantined 0
+percentage_tested 100
+testdate 3
+dist_on_testdate 3
+herd 0
+population 500000
 //physical distancing related
 physical_distancing 0
 //pd_at_test 10
 pddth 1
 pdeff1 80
 //lockdown related
-haslockdown 0 //Is there a lockdown?
-lockdownlen 150 //How long does it last
-infectible_proportion 0.01 // What is the infectible proportion at lockdown
-//lockdown_at_test 100 //Lockdown at 100th positive tested case
-lockdth 10 //lockdown at 10th death
-pdeff_lockdown 60 // 60% effective pd at lockdown
-popleak 5000 // 5000 leak into infectible population every day
-popleak_start_day 0 //The leak starts immediately
-//To sync with data. E.g. if the 40th positive case occurs on day 14
-sync_at_test 40 //synchronise at the 40th test
-//sync_at_death 1 //synchronise at the first death
-sync_at_time 14 //synchronise at time step 14
-sync_file data1/SampleDelays
-
-
+haslockdown 0
+lockdownlen 150
+infectible_proportion 0.003
+//lockdown_at_test 1 
+lockdth 10
+pdeff_lockdown 60
+popleak 5000
+popleak_start_day 0

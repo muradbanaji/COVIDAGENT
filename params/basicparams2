@@ -1,0 +1,48 @@
+//two lockdowns
+number_of_runs 10
+death_rate 0.2 //IFR
+//gamma dist. of R0 values with mean 3.0 and dispersion 0.1
+geometric -1 
+infshp 0.1 
+R0 4.0 
+// Run simulation for 200 days
+totdays 200
+//for computational speed rescale every 2^n*50000 infections (n=0, 1, ...)
+scale_at_infs 50000 
+//uniform dist. on timing of infections: 2 to 9 days after index infection
+inf_gam 0
+inf_start 2
+inf_end 9
+// normal dist. with mean 17 and SD 3 on time from infection to death reporting
+time_to_death 17
+dist_on_death -3 
+// normal dist. with mean 20 and SD 2 on time from infection to recovery
+time_to_recovery 20
+dist_on_recovery -2 
+// normal dist. with mean 14 and SD 2 on time from infection to IgG seroconversion
+time_to_sero 14
+dist_on_sero -2
+initial_infections 10
+percentage_quarantined 10 // 10% quarantined
+percentage_tested 15 //15% of those quarantined tested - case detection = 1.5%
+// normal dist. on time to quarantining with mean 12 and SD 3
+testdate 12
+dist_on_testdate -3
+herd 1 // simulation with herd immunity
+population 10000000 //total population (before an leak)
+// better to use the two lockdowns; kept for backward compatibility
+physical_distancing 0 
+pd_at_test 10
+pdeff1 80
+//two lockdowns
+haslockdown 2 
+lockdown_at_inf 800 //first lockdown at 800 infections
+lockdownlen 19 200 //length of two lockdowns (second ends with end of simulation)
+lockdown2startday 30 // lockdown 2 starts 30 days after start of lockdown 1
+infectible_proportion 0.01, 0.5
+pdeff_lockdown 53, 69
+popleak 0, 550000 // no leak in first lockdown
+popleak_start_day 20, 40
+popleak_end_day 40, 100
+
+
