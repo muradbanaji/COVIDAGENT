@@ -1,0 +1,8 @@
+Changed parameter for truncation of geometric distribution from 1.5 to 2 to decrease truncation error.
+(maxP=2*R0*(R0+1))
+
+Corrected some errors to make sure that doubling times were being computed. 
+
+Introduced dynamic speeding up as follows. If "scale_at_infs" (which can be set in parameter file) is positive, then at 2^k*scale_at_infs current infections (starting at k=0), half of all current infections are wiped out, and the weight of the remaining half are doubled. Set scale_at_infs to -1 for no dynamic scaling. 
+
+Put in code to output values at some marker point a fixed number of days after the first real data point. The new parameter "syncout" (which can be set in the parameter value file) counts the days from the first day of data, which is regarded as day 0.

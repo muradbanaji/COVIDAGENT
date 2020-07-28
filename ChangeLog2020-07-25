@@ -1,0 +1,31 @@
+These are changes associated with the move to a new version termed version 0.2. The changes are extensive and the intention is to produce a proper descriptor of the model code at some point. Here is a summary. 
+
+The new code is in "inf2.cc"
+
+Introduced the possibility of using a gamma distribution on the number of individuals one individual can infect. If the parameter "geometric" is set to -1, then a gamma distribution is used. R0 still refers to the mean, while the parameter "infshp" is the shape parameter (dispersion). The native C++ implementation is used, so compilation now happens with the command
+g++ -lm -std=gnu++11 inf2.cc
+
+We run as before with the command
+./a.out <param_file> <output_file>
+
+"MAXDISCPROB" hard coded value is now 120 to cope with high dispersions without significant drop in the true R0. 
+
+There is now the possibility of a gamma distribution on the times at which transmission occurs. For this, the parameter "inf_gam" needs to be set to 1, and the new parameters inf_mid (mean time to transmission) and inf_shp (shape parameter for the distribution) need to be set. Times at which transmission occurs for an individual are now distributed according to either the uniform distribution on the interval defined by parameters "inf_start" and "inf_end"; or the gamma distribution with parameters "inf_mid" (mean) and "inf_tm_shp" (dispersion). 
+
+Introduced the possibility of normal distributions on "time_to_death", "time_to_recovery", "time_to_sero" and "testdate". In each case if the associated distribution parameter ("dist_on_death", "dist_on_recovery", "dist_on_sero", and "dist_on_testdate" respectively) is set to be negative, then its absolute value is taken to be the standard deviation of the distribution. For compatibility with earlier versions, positive integer values of 2,4 and 6 are still allowed, but are discouraged. 
+
+Every simulation now produces a log file <output_fname>_log which tracks the average value of R0, the average time_to_death, the average time_to_recovery, the average time_to_sero and the average testdate. This is to monitor the effects of truncation errors, rounding errors, and possibly other errors. 
+
+An important change: the death of infs[i] now gets counted at "infs[i]->dth_time" (rather than one time-step later as previously); and recovery at "infs[s]->recov_time" (rather than one time-step later as previously).
+
+Created a new quantity for an inf, termed "lastop_time". Deallocation is separated from other operations, and occurs at age lastop_time which is set to be one greater than the last operation affecting the individual. The change was made because addition to the testing numbers and serconversion can occur after recovery; and addition to the testing numbers can occur after death. (It is assumed that appearing in seroconversion stats doesn't occur after death.)
+
+Added a parameter "popleak_end_day" to end leak into the infectible population.
+
+Two lockdowns are now possible. We need to set the parameter "haslockdown" to take the value "2", and set a parameter "lockdown2startday" which gives the number of days after the first lockdown that the second lockdown starts. We can also set two values for the parameters "lockdownlen", "infectible_proportion", "pdeff_lockdown", "popleak", "popleak_start_day" and "popleak_end_day". "infectible_proportion" for the second lockdown still refers to a proportion of the original variable "population" which is infectible at the start of lockdown 2. "popleak_start_day" and "popleak_end_day" refer to the day after the start of the second lockdown when the leak into the infectible population starts and finishes respectively. 
+
+The parameter file basicparams2 provides an example of parameters for a simulation with two lockdowns.
+
+A number of changes have been made to outputs. For example, during the simulation an output file will be created termed "<output_file>_sync" which contains output values synchronised to data one simulation in each block; a file "<output_file>_sync1" which contains output values synchronised to data, one time-step in each block (the last two rows of each block are averages and standard deviations); and a file "<output_file>_av" contains average values and standard deviations from a set of simulations.
+
+The parameter "syncout" has become redundant, given that the file "<output_file>_sync1" contains the synchronised values for each value of this parameter. 
