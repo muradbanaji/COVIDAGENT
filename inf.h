@@ -32,6 +32,7 @@ class inf{
   int ill;
   int quar;//in quarantined state?
   int quardt;//quarantine date
+  int testdt;//test date
   int inftimes[MAXDISCPROB+1];
   int infnums[MAXAGE];// number to infect at each time
   int dth_time;

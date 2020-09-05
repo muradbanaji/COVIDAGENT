@@ -1,0 +1,6 @@
+Testing (i.e., addition to the confirmed cases statistics) may now occur with a delay after quarantining. An average length of this delay is given by the new parameter "testdelay". The delay may either be fixed, or distributed according to a gamma distribution with shape parameter "testdelay_shp". (If the delay is to be fixed at some value, this parameter should be set to be -1).
+
+To avoid confusions, parameters "testdate" and "dist_on_testdate" have been renamed as "quardate" and "dist_on_quardate" respectively. 
+
+The parameter "pd_at_inf" has been introduced so that a physical distancing event can begin when infections cross the value of this parameter. It is to be interpreted alongside the parameters "pd_at_dth" and "pd_at_test". 
+
