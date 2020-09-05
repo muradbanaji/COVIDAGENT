@@ -875,7 +875,11 @@ int main(int argc, char *argv[]){
 
   //options: physical distancing
   haspd=getoptioni(paramfilename, "physical_distancing", 0, fd1);//physical distancing?
-  pd_at_dth=getoptioni(paramfilename, "pddth", -1,fd1);//physical distancing at nth death
+
+  if(getoption(paramfilename, "pd_at_dth", 1, tempword, 200)==0)
+    pd_at_dth=getoptioni(paramfilename, "pd_at_dth", -1, fd1);//physical distancing at nth death
+  else//legacy
+    pd_at_dth=getoptioni(paramfilename, "pddth", -1,fd1);//physical distancing at nth death
   pd_at_test=getoptioni(paramfilename, "pd_at_test", -1,fd1);//physical distancing at nth recorded infection
   pd_at_inf=getoptioni(paramfilename, "pd_at_inf", -1,fd1);//physical distancing at nth infection
   pdeff1=getoptionf(paramfilename, "pdeff1", 30, fd1);//effectiveness of physical distancing
