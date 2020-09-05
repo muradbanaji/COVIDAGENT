@@ -849,7 +849,11 @@ int main(int argc, char *argv[]){
   testdelay_shp=getoptionf(paramfilename, "testdelay_shp", -1, fd1);//distribution on delay between quarantining and testing
   //options: lockdown
   haslockdown=getoptioni(paramfilename, "haslockdown", 0, fd1);//lockdown?
-  lockdown_at_dth=getoptioni(paramfilename, "lockdth", -1, fd1);//lockdown at nth death
+
+  if(getoption(paramfilename, "lockdown_at_dth", 1, tempword, 200)==0)
+    lockdown_at_dth=getoptioni(paramfilename, "lockdown_at_dth", -1, fd1);//lockdown at nth death
+  else//legacy
+    lockdown_at_dth=getoptioni(paramfilename, "lockdth", -1, fd1);//lockdown at nth death
   lockdown_at_test=getoptioni(paramfilename, "lockdown_at_test", -1, fd1);//lockdown at nth test
   lockdown_at_inf=getoptioni(paramfilename, "lockdown_at_inf", -1, fd1);//lockdown at nth test
   lockdownlen=getoptioni(paramfilename, "lockdownlen", 0, fd1);//length of lockdown
@@ -1071,6 +1075,7 @@ int main(int argc, char *argv[]){
 	  else if(infs[i]->quar==0 && infs[i]->age<MAXAGE && (!pd|| (pd && randpercentage(100.0-pdeff)))){//still being processed, not quarantined, no physical distancing or pd not happening
 	    if(herd){herdlevel=100.0*((double)numinf/(double)effpop);}
 	    if(!herd || (herd && randpercentage(100.0-herdlevel))){
+	      //Currently all infection events on a given day for an individual either do or don't take place
 	      for(j=0;j<infs[i]->infnums[infs[i]->age];j++){
 		tmpi=create(infs, gamswtch, infshp, infscl, P, maxP, inf_gam, inf_start, inf_end, inf_mid, inf_tm_shp, &numinf, &numcurinf, &newinfs, &numill, percill, percdeath, time_to_death, dist_on_death, time_to_recovery, dist_on_recovery, time_to_sero, dist_on_sero, quardate, quarp, dist_on_quardate, testp, testdelay, testdelay_shp);//create new infecteds
 		numinf+=(multiplier-1);numcurinf+=(multiplier-1);newinfs+=(multiplier-1);
