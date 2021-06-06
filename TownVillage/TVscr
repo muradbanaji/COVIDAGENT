@@ -1,2 +1,0 @@
-g++ -lm -Wall -std=gnu++11 TownVillage.cc -o TownVillage
-./TownVillage TownVillageParams01 output/TownVillage01
