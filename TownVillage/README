@@ -1,0 +1,24 @@
+TOWNVILLAGE is a toy model with one town and several villages connected to it.
+The goal is to illustrate that disease can wind down well even after 
+mitigation has ended, and at well below "herd immunity"
+
+For example at the parameter values in TownVillageParams01, lockdown
+slows the town epidemic and reduces the coupling between town and villages.
+Some village epidemics are triggered before lockdown, and a few during
+lockdown, but by the time lockdown finishes, prevalence in the town is low.
+The low level town epidemic can still trigger occasional village outbreaks
+as it winds down; but many villages do not see an epidemic. 
+
+The code is unnecessarily complicated(!) because it is adapted from a 
+more complex model used to model Mumbai's dynamics. 
+
+On Linux you can compile with, say, the command 
+
+g++ -lm -Wall -std=gnu++11 TownVillage.cc -o TownVillage
+
+You can then run with, say, the command
+
+./TownVillage TownVillageParams01 output/TownVillage01
+
+
+

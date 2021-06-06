@@ -1,0 +1,10 @@
+On Linux you can compile with, say, the command 
+
+g++ -lm -Wall -std=gnu++11 TownVillage.cc -o TownVillage
+
+You can then run with, say, the command
+
+./TownVillage TownVillageParams01 output/TownVillage01
+
+
+
